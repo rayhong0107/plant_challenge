@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>行星風系挑戰｜Galaxy Wind Match v3</title>
+  <style>
+    :root{
+      --txt: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.70);
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --glass-brd: rgba(255,255,255,.18);
+      --glass-bg1: rgba(255,255,255,.12);
+      --glass-bg2: rgba(255,255,255,.04);
+      --ok: rgba(110,255,190,.92);
+      --danger: rgba(255,90,120,.92);
+      --accent: rgba(120,200,255,.85);
+    }
+    html,body{height:100%;margin:0;background:#050612;font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; overflow:hidden;}
+    #app{position:fixed;inset:0;display:flex;}
+    #stage{position:relative;flex:1;}
+    canvas{display:block;width:100%;height:100%;}
+    .glass{
+      background: linear-gradient(135deg, var(--glass-bg1), var(--glass-bg2));
+      border: 1px solid var(--glass-brd);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      border-radius: 18px;
+    }
+    .panel{
+      position:absolute; top:18px; left:18px; width:370px; padding:14px;
+      color:var(--txt); z-index:5;
+    }
+    .title{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+    .badge{
+      padding:4px 10px; border-radius:999px;
+      background: rgba(120,200,255,.12);
+      border:1px solid rgba(120,200,255,.22);
+      color: rgba(170,230,255,.95);
+      font-size:12px; white-space:nowrap;
+    }
+    .h1{font-weight:800; letter-spacing:.2px;}
+    .row{display:flex; gap:10px; align-items:center; margin:10px 0;}
+    label{font-size:12px;color:var(--muted);}
+    select, input[type="range"], button, textarea, input[type="text"]{
+      width:100%;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.18);
+      color: var(--txt);
+      padding:10px 12px;
+      outline:none;
+      box-sizing:border-box;
+    }
+    textarea{min-height: 120px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; line-height:1.35;}
+    input[type="range"]{padding:0;height:34px;}
+    .small{font-size:12px;color:var(--muted); line-height:1.35;}
+    .btn{
+      cursor:pointer;
+      background: linear-gradient(135deg, rgba(120,200,255,.25), rgba(255,255,255,.06));
+      transition:.15s transform ease, .15s filter ease;
+    }
+    .btn:active{transform: translateY(1px) scale(.99);}
+    .btn2{
+      cursor:pointer;
+      background: linear-gradient(135deg, rgba(110,255,190,.18), rgba(255,255,255,.06));
+    }
+    .btnDanger{
+      cursor:pointer;
+      background: linear-gradient(135deg, rgba(255,90,120,.22), rgba(255,255,255,.06));
+    }
+    .split{display:flex; gap:10px;}
+    .split > *{flex:1;}
+    .hr{height:1px;background:rgba(255,255,255,.10);margin:10px 0;}
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      font-size:12px; color:var(--muted);
+    }
+    #deck{
+      position:absolute; right:18px; top:18px;
+      width:350px; padding:14px; color:var(--txt); z-index:5;
+    }
+    #cards{display:flex; flex-direction:column; gap:10px; margin-top:10px; max-height: calc(100vh - 200px); overflow:auto; padding-right:6px;}
+    .card{
+      user-select:none;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.16);
+      background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
+      padding:12px;
+      cursor:grab;
+      position:relative;
+      box-shadow: 0 18px 40px rgba(0,0,0,.25);
+      transition:.12s transform ease, .12s filter ease, .12s opacity ease;
+      touch-action:none;
+      -webkit-user-select:none;
+    }
+    .card:active{cursor:grabbing;}
+    .card .k{font-size:12px;color:rgba(255,255,255,.72); margin-bottom:6px;}
+    .card .v{font-size:14px;font-weight:700; line-height:1.25;}
+    .card.done{
+      border-color: rgba(110,255,190,.35);
+      background: linear-gradient(135deg, rgba(110,255,190,.16), rgba(255,255,255,.05));
+    }
+    .ghost{
+      position:fixed;
+      pointer-events:none;
+      z-index:99999;
+      width: 300px;
+      transform: translate(-9999px, -9999px) scale(1.03);
+      filter: brightness(1.05);
+    }
+    .hint{
+      position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+      padding:10px 12px; border-radius:999px;
+      color: rgba(255,255,255,.78);
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size:12px;
+      z-index:5;
+    }
+    .toast{
+      position:absolute; left:50%; top:18px; transform:translateX(-50%);
+      padding:10px 12px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: rgba(255,255,255,.88);
+      font-size:12px;
+      display:none;
+      pointer-events:none;
+      z-index:7;
+    }
+    .toast.show{display:block; animation: pop .18s ease;}
+    @keyframes pop{from{transform:translateX(-50%) scale(.98);opacity:.5}to{transform:translateX(-50%) scale(1);opacity:1}}
+
+    /* CSS2D pins */
+    .pin{pointer-events:none; transform: translate(-50%, -110%);}
+    .pinCard{
+      width: 250px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.18);
+      background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+      box-shadow: 0 18px 40px rgba(0,0,0,.30);
+      backdrop-filter: blur(16px) saturate(160%);
+      -webkit-backdrop-filter: blur(16px) saturate(160%);
+      padding: 10px 12px;
+      color: rgba(255,255,255,.92);
+    }
+    .pinCard .k{font-size:11px;color:rgba(255,255,255,.70);margin-bottom:4px}
+    .pinCard .v{font-size:13px;font-weight:800;line-height:1.25}
+    .pinDot{
+      width:10px;height:10px;border-radius:999px;
+      margin:8px auto 0 auto;
+      background: var(--ok);
+      box-shadow: 0 0 24px rgba(110,255,190,.55);
+      border:1px solid rgba(255,255,255,.35);
+    }
+
+    /* editor drawer */
+    #editorToggle{
+      position:absolute; left:18px; bottom:72px;
+      width: 160px; z-index:6;
+    }
+    #editor{
+      position:absolute; left:18px; bottom:118px;
+      width: 420px; max-height: calc(100vh - 170px);
+      padding:14px; color:var(--txt);
+      z-index:6;
+      display:none;
+      overflow:auto;
+    }
+    #editor.show{display:block;}
+    .qRow{display:flex; gap:8px; align-items:center; margin:8px 0;}
+    .qRow input[type="checkbox"]{width:16px;height:16px;}
+    .qItem{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      border-radius:14px;
+      padding:10px;
+      margin:8px 0;
+    }
+    .qHead{display:flex; align-items:flex-start; gap:10px;}
+    .qHead .t{font-weight:800; font-size:13px; line-height:1.25;}
+    .qHead .meta{font-size:11px; color:rgba(255,255,255,.68); margin-top:4px;}
+    .qHead .right{margin-left:auto; display:flex; gap:8px; align-items:center;}
+    .tag{
+      font-size:11px; padding:3px 8px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.72);
+      white-space:nowrap;
+    }
+    .tag.ok{border-color: rgba(110,255,190,.25); color: rgba(160,255,220,.92)}
+    .tag.off{border-color: rgba(255,255,255,.10); color: rgba(255,255,255,.55)}
+    .miniBtn{
+      padding:8px 10px; border-radius:12px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.16);
+      cursor:pointer;
+      font-size:12px;
+    }
+    .miniBtn:active{transform: translateY(1px)}
+    .grid2{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    .note{font-size:11px; color:rgba(255,255,255,.65); line-height:1.35}
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "topojson-client": "https://cdn.jsdelivr.net/npm/topojson-client@3/+esm"
+    }
+  }
+  </script>
+</head>
+
+<body>
+<div id="app">
+  <div id="stage">
+    <div class="panel glass">
+      <div class="title">
+        <div class="badge">Galaxy Wind Match v3</div>
+        <div class="h1">行星風系挑戰</div>
+      </div>
+
+      <div class="row">
+        <div class="pill">🪐 題型</div>
+      </div>
+      <select id="mode">
+        <option value="cells">三圈環流（Hadley / Ferrel / Polar）</option>
+        <option value="winds">地表盛行風（信風 / 西風 / 極地東風）</option>
+        <option value="belts">氣壓帶/現象（依照你那張圖）</option>
+      </select>
+
+      <div class="row" style="margin-top:12px;">
+        <div class="pill">🧩 出題數量：<span id="countLabel">10</span></div>
+      </div>
+      <input id="count" type="range" min="3" max="14" value="10" />
+
+      <div class="row">
+        <div class="pill">🔊 音效</div>
+        <label style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <input id="sound" type="checkbox" checked style="width:16px;height:16px;" />
+          <span class="small">開</span>
+        </label>
+      </div>
+
+      <div class="split" style="margin-top:10px;">
+        <button id="start" class="btn">開始遊戲</button>
+        <button id="resetView" class="btn2">重置視角</button>
+      </div>
+
+      <div class="hr"></div>
+      <div class="small" id="status">
+        把右側卡片拖到地球上的「發光緯度帶」。<br/>
+        ✅ 答對：卡片鎖在地球表面 + 煙火<br/>
+        ❌ 答錯：(特效) 從地表爆出核爆蘑菇雲<br/>
+        ⭐ 左下角「題庫編輯」可新增/停用題目（不會刪除舊題）
+      </div>
+    </div>
+
+    <div id="deck" class="glass">
+      <div class="title">
+        <div class="badge">拖曳配對</div>
+        <div class="h1">題目卡片</div>
+      </div>
+      <div class="small">拖到地球對應緯度帶（可旋轉地球）。</div>
+      <div id="cards"></div>
+      <div class="hr"></div>
+      <div class="small">進度：<span id="progress">0/0</span></div>
+    </div>
+
+    <button id="editorToggle" class="glass btn">🧰 題庫編輯</button>
+
+    <div id="editor" class="glass">
+      <div class="title">
+        <div class="badge">Question Builder</div>
+        <div class="h1">題庫編輯器</div>
+      </div>
+
+      <div class="small">目前題型：<span id="modeName"></span>　｜　題目總數：<span id="bankCount"></span></div>
+      <div class="hr"></div>
+
+      <div class="qItem">
+        <div class="small" style="margin-bottom:8px;">新增題目（不會刪掉既有題目）</div>
+        <input id="newLabel" type="text" placeholder="例如：極圈氣旋帶（約 60°）" />
+        <div class="qRow" style="margin-top:10px;">
+          <span class="small" style="min-width:84px;">可丟區域</span>
+          <label class="small"><input type="checkbox" class="acc" value="N_0_30"> 北 0–30</label>
+          <label class="small"><input type="checkbox" class="acc" value="N_30_60"> 北 30–60</label>
+          <label class="small"><input type="checkbox" class="acc" value="N_60_90"> 北 60–90</label>
+        </div>
+        <div class="qRow" style="margin-top:6px;">
+          <span class="small" style="min-width:84px;"></span>
+          <label class="small"><input type="checkbox" class="acc" value="S_0_30"> 南 0–30</label>
+          <label class="small"><input type="checkbox" class="acc" value="S_30_60"> 南 30–60</label>
+          <label class="small"><input type="checkbox" class="acc" value="S_60_90"> 南 60–90</label>
+        </div>
+        <div class="split" style="margin-top:10px;">
+          <button id="addQ" class="btn2">新增到題庫</button>
+          <button id="clearAcc" class="btn">清除勾選</button>
+        </div>
+        <div class="note" style="margin-top:10px;">
+          边界規則：30°算 30–60；60°算 60–90（避免判定模糊）。<br/>
+          題庫會自動儲存在此裝置（localStorage）。
+        </div>
+      </div>
+
+      <div class="qItem">
+        <div class="small" style="margin-bottom:8px;">題庫清單（可停用，不用刪）</div>
+        <div id="bankList"></div>
+      </div>
+
+      <div class="qItem">
+        <div class="small" style="margin-bottom:8px;">匯出/匯入（JSON）</div>
+        <div class="grid2">
+          <button id="exportBank" class="btn">匯出到文字框</button>
+          <button id="importBank" class="btn2">從文字框匯入</button>
+        </div>
+        <textarea id="bankJson" placeholder="按匯出會出現在這裡；或貼上 JSON 後按匯入"></textarea>
+        <div class="split">
+          <button id="resetBank" class="btnDanger">重置題庫（回到預設）</button>
+          <button id="closeEditor" class="btn">關閉</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <div class="hint">🖱️ 拖卡片 → 丟到地球光環｜🌀 拖曳旋轉｜🔍 滾輪縮放</div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import { feature } from "topojson-client";
+
+// ---------- helpers ----------
+const $ = (id)=>document.getElementById(id);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const deg2rad = (d)=>d*Math.PI/180;
+
+function latLonToVec3(lat, lon, r){
+  const phi = deg2rad(90 - lat);
+  const theta = deg2rad(lon + 180);
+  const x = -r * Math.sin(phi) * Math.cos(theta);
+  const z =  r * Math.sin(phi) * Math.sin(theta);
+  const y =  r * Math.cos(phi);
+  return new THREE.Vector3(x,y,z);
+}
+function latToTheta(lat){ return deg2rad(90 - lat); }
+function uid(){ return Math.random().toString(16).slice(2) + Date.now().toString(16); }
+
+// ---------- audio (synth) ----------
+let audioCtx = null;
+function ensureAudio(){
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function blip(type="ok"){
+  if (!$("sound").checked) return;
+  ensureAudio();
+  const t0 = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+
+  if (type==="ok"){
+    o.type="triangle";
+    o.frequency.setValueAtTime(520, t0);
+    o.frequency.exponentialRampToValueAtTime(980, t0+0.10);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.14, t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.22);
+    o.start(t0); o.stop(t0+0.25);
+  } else {
+    o.type="sawtooth";
+    o.frequency.setValueAtTime(140, t0);
+    o.frequency.exponentialRampToValueAtTime(50, t0+0.28);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.25, t0+0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.50);
+    o.start(t0); o.stop(t0+0.52);
+
+    const n = audioCtx.createBufferSource();
+    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.45, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 1.8);
+    n.buffer = buffer;
+    const f = audioCtx.createBiquadFilter();
+    f.type="lowpass"; f.frequency.setValueAtTime(160, t0);
+    const ng = audioCtx.createGain();
+    ng.gain.setValueAtTime(0.0001, t0);
+    ng.gain.exponentialRampToValueAtTime(0.35, t0+0.02);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t0+0.45);
+    n.connect(f); f.connect(ng); ng.connect(audioCtx.destination);
+    n.start(t0); n.stop(t0+0.46);
+  }
+}
+
+// ---------- toast ----------
+let toastTimer=null;
+function toast(msg){
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove("show"), 1100);
+}
+
+// ---------- three scene ----------
+const stage = $("stage");
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(stage.clientWidth, stage.clientHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+stage.appendChild(renderer.domElement);
+
+// CSS2D overlay
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(stage.clientWidth, stage.clientHeight);
+labelRenderer.domElement.style.position = "absolute";
+labelRenderer.domElement.style.top = "0";
+labelRenderer.domElement.style.left = "0";
+labelRenderer.domElement.style.pointerEvents = "none";
+labelRenderer.domElement.style.zIndex = "4";
+stage.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(45, stage.clientWidth/stage.clientHeight, 0.1, 2000);
+camera.position.set(0, 0, 3.35);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.15;
+controls.maxDistance = 6.2;
+
+const amb = new THREE.AmbientLight(0xffffff, 0.28);
+scene.add(amb);
+
+const sun = new THREE.DirectionalLight(0xffffff, 2.35);
+sun.position.set(5, 2, 3);
+scene.add(sun);
+
+// ---------- Galaxy with colors + nebula ----------
+function makeColoredStarfield(){
+  const n = 3600;
+  const pos = new Float32Array(n*3);
+  const col = new Float32Array(n*3);
+
+  for (let i=0;i<n;i++){
+    const r = 70 + Math.random()*210;
+    const u = Math.random()*2-1;
+    const a = Math.random()*Math.PI*2;
+    const t = Math.sqrt(1-u*u);
+
+    const x = r * t*Math.cos(a);
+    const y = r * u;
+    const z = r * t*Math.sin(a);
+
+    pos[i*3+0] = x; pos[i*3+1] = y; pos[i*3+2] = z;
+
+    // color palette: cyan/purple/pink + occasional warm stars
+    const pick = Math.random();
+    let c;
+    if (pick < 0.55){
+      const h = 0.53 + Math.random()*0.10; // cyan/blue
+      c = new THREE.Color().setHSL(h, 0.85, 0.75);
+    } else if (pick < 0.90){
+      const h = 0.78 + Math.random()*0.12; // purple/pink
+      c = new THREE.Color().setHSL(h, 0.90, 0.75);
+    } else {
+      const h = 0.10 + Math.random()*0.07; // warm
+      c = new THREE.Color().setHSL(h, 0.85, 0.75);
+    }
+    const tw = 0.65 + Math.random()*0.55;
+    col[i*3+0] = c.r * tw;
+    col[i*3+1] = c.g * tw;
+    col[i*3+2] = c.b * tw;
+  }
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos,3));
+  g.setAttribute("color", new THREE.BufferAttribute(col,3));
+
+  const m = new THREE.PointsMaterial({
+    size: 0.65,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.90,
+    depthWrite: false,
+    vertexColors: true
+  });
+  const p = new THREE.Points(g,m);
+  p.renderOrder = -10;
+  return p;
+}
+
+function makeNebulaTexture(){
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext("2d");
+
+  ctx.fillStyle = "#050612";
+  ctx.fillRect(0,0,512,512);
+
+  function blob(x,y,r,rgba){
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0, rgba);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  // colored blobs
+  for (let i=0;i<22;i++){
+    const x = Math.random()*512, y = Math.random()*512;
+    const r = 90 + Math.random()*190;
+    const pick = Math.random();
+    let rgba = "rgba(140,220,255,0.14)";
+    if (pick<0.5) rgba = "rgba(140,220,255,0.14)";
+    else if (pick<0.85) rgba = "rgba(190,140,255,0.13)";
+    else rgba = "rgba(255,140,210,0.12)";
+    blob(x,y,r,rgba);
+  }
+  // noise
+  const img = ctx.getImageData(0,0,512,512);
+  const d = img.data;
+  for (let i=0;i<d.length;i+=4){
+    const n = (Math.random()-0.5)*22;
+    d[i]   = clamp(d[i]+n, 0, 255);
+    d[i+1] = clamp(d[i+1]+n, 0, 255);
+    d[i+2] = clamp(d[i+2]+n, 0, 255);
+  }
+  ctx.putImageData(img,0,0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1.4,1.4);
+  return tex;
+}
+
+const stars = makeColoredStarfield();
+scene.add(stars);
+
+const nebTex = makeNebulaTexture();
+const nebSphere = new THREE.Mesh(
+  new THREE.SphereGeometry(260, 48, 48),
+  new THREE.MeshBasicMaterial({
+    map: nebTex,
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 0.55
+  })
+);
+nebSphere.renderOrder = -20;
+scene.add(nebSphere);
+
+// ---------- Earth ----------
+const earthGroup = new THREE.Group();
+scene.add(earthGroup);
+const R = 1.0;
+
+const tloader = new THREE.TextureLoader();
+const texBase = "https://posibras.com/threejs/examples/textures/planets/";
+
+// Note: keeping CORS-friendly texture set; land/sea contrast is pushed via phong specular + bump.
+const day = tloader.load(texBase+"earth_atmos_4096.jpg");
+day.colorSpace = THREE.SRGBColorSpace;
+const specMap = tloader.load(texBase+"earth_specular_2048.jpg");
+specMap.colorSpace = THREE.SRGBColorSpace;
+let bump = null;
+try{ bump = tloader.load(texBase+"earth_bump_2048.jpg"); }catch(e){ bump = null; }
+const nightTex = tloader.load(texBase+"earth_lights_2048.png");
+nightTex.colorSpace = THREE.SRGBColorSpace;
+const cloud = tloader.load(texBase+"earth_clouds_1024.png");
+cloud.colorSpace = THREE.SRGBColorSpace;
+
+const earthMat = new THREE.MeshPhongMaterial({
+  map: day,
+  specularMap: specMap,
+  specular: new THREE.Color(0x1b3c66), // ocean-ish highlight
+  shininess: 34,
+  bumpMap: bump || null,
+  bumpScale: bump ? 0.040 : 0.0
+});
+const earth = new THREE.Mesh(new THREE.SphereGeometry(R, 160, 160), earthMat);
+earthGroup.add(earth);
+
+const night = new THREE.Mesh(
+  new THREE.SphereGeometry(R+0.0012, 160, 160),
+  new THREE.MeshBasicMaterial({
+    map: nightTex,
+    transparent:true,
+    opacity:0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite:false
+  })
+);
+earthGroup.add(night);
+
+const clouds = new THREE.Mesh(
+  new THREE.SphereGeometry(R+0.012, 160, 160),
+  new THREE.MeshLambertMaterial({
+    map: cloud,
+    transparent:true,
+    opacity:0.34,
+    depthWrite:false
+  })
+);
+earthGroup.add(clouds);
+
+const atmo = new THREE.Mesh(
+  new THREE.SphereGeometry(R+0.04, 160, 160),
+  new THREE.MeshBasicMaterial({
+    color: new THREE.Color(0x7bd3ff),
+    transparent:true,
+    opacity:0.11,
+    blending: THREE.AdditiveBlending,
+    depthWrite:false
+  })
+);
+earthGroup.add(atmo);
+
+// Borders
+async function loadBorders(){
+  try{
+    const url = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+    const topo = await (await fetch(url)).json();
+    const geo = feature(topo, topo.objects.countries);
+    const lines = new THREE.Group();
+    const lineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(0x8fd6ff), transparent:true, opacity:0.24 });
+
+    for (const f of geo.features){
+      const geom = f.geometry;
+      const polys = (geom.type==="Polygon") ? [geom.coordinates] :
+                    (geom.type==="MultiPolygon") ? geom.coordinates : [];
+      for (const poly of polys){
+        for (const ring of poly){
+          const pts = [];
+          const step = Math.max(1, Math.floor(ring.length/200));
+          for (let i=0;i<ring.length;i+=step){
+            const [lon,lat] = ring[i];
+            pts.push(latLonToVec3(lat, lon, R+0.002));
+          }
+          if (pts.length<2) continue;
+          const g = new THREE.BufferGeometry().setFromPoints(pts);
+          lines.add(new THREE.Line(g, lineMat));
+        }
+      }
+    }
+    earthGroup.add(lines);
+  }catch(e){
+    console.warn("Borders load failed:", e);
+  }
+}
+loadBorders();
+
+// ---------- droppable latitude bands ----------
+const bandGroup = new THREE.Group();
+earthGroup.add(bandGroup);
+
+const bands = [
+  {id:"N_0_30",   name:"北半球 0°–30°",  latMin:0,  latMax:30},
+  {id:"N_30_60",  name:"北半球 30°–60°", latMin:30, latMax:60},
+  {id:"N_60_90",  name:"北半球 60°–90°", latMin:60, latMax:90},
+  {id:"S_0_30",   name:"南半球 0°–30°",  latMin:-30, latMax:0},
+  {id:"S_30_60",  name:"南半球 30°–60°", latMin:-60, latMax:-30},
+  {id:"S_60_90",  name:"南半球 60°–90°", latMin:-90, latMax:-60},
+];
+
+const bandMeshes = new Map();
+function makeBandMesh(b){
+  const thetaStart = latToTheta(b.latMax);
+  const thetaLen = Math.max(0.0001, latToTheta(b.latMin) - latToTheta(b.latMax));
+  const geo = new THREE.SphereGeometry(R+0.02, 100, 100, 0, Math.PI*2, thetaStart, thetaLen);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(0xbdeaff),
+    transmission: 0.94,
+    thickness: 0.26,
+    roughness: 0.16,
+    metalness: 0.02,
+    ior: 1.38,
+    transparent:true,
+    opacity: 0.22,
+    emissive: new THREE.Color(0x4aa7ff),
+    emissiveIntensity: 0.20,
+    depthWrite:false,
+    side: THREE.DoubleSide
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.userData.bandId = b.id;
+  bandGroup.add(m);
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo, 10),
+    new THREE.LineBasicMaterial({ color: new THREE.Color(0x9be0ff), transparent:true, opacity:0.14 })
+  );
+  m.add(edges);
+  return m;
+}
+function buildBands(){
+  bandGroup.clear();
+  bandMeshes.clear();
+  for (const b of bands) bandMeshes.set(b.id, makeBandMesh(b));
+}
+buildBands();
+
+// hover highlight
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2(0,0);
+let hoverBand = null;
+function setHoverBand(mesh){
+  if (hoverBand && hoverBand !== mesh){
+    hoverBand.material.emissiveIntensity = 0.20;
+    hoverBand.material.opacity = 0.22;
+  }
+  hoverBand = mesh;
+  if (hoverBand){
+    hoverBand.material.emissiveIntensity = 0.55;
+    hoverBand.material.opacity = 0.33;
+  }
+}
+
+// ---------- procedural textures for FX ----------
+function makeRadialTexture(kind="smoke"){
+  const c = document.createElement("canvas");
+  c.width = 128; c.height = 128;
+  const ctx = c.getContext("2d");
+
+  const g = ctx.createRadialGradient(64,64,2,64,64,64);
+  if (kind==="smoke"){
+    g.addColorStop(0, "rgba(255,255,255,0.85)");
+    g.addColorStop(0.5, "rgba(210,210,220,0.22)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+  }else if (kind==="fire"){
+    g.addColorStop(0, "rgba(255,255,255,0.95)");
+    g.addColorStop(0.25, "rgba(255,210,120,0.65)");
+    g.addColorStop(0.6, "rgba(255,80,60,0.22)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+  }else{
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.35, "rgba(255,240,210,0.75)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,128,128);
+
+  const img = ctx.getImageData(0,0,128,128);
+  const d = img.data;
+  for (let i=0;i<d.length;i+=4){
+    const n = (Math.random()-0.5)*18;
+    d[i] = clamp(d[i]+n,0,255);
+    d[i+1] = clamp(d[i+1]+n,0,255);
+    d[i+2] = clamp(d[i+2]+n,0,255);
+  }
+  ctx.putImageData(img,0,0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const TEX_SMOKE = makeRadialTexture("smoke");
+const TEX_FIRE  = makeRadialTexture("fire");
+const TEX_FLASH = makeRadialTexture("flash");
+
+// ---------- Effects ----------
+const fxGroup = new THREE.Group();
+scene.add(fxGroup);
+
+class Fireworks{
+  constructor(origin, normal){
+    this.life = 0; this.max = 1.15;
+    const n = 280;
+    const pos = new Float32Array(n*3);
+    const vel = new Float32Array(n*3);
+
+    const N = normal.clone().normalize();
+
+    for (let i=0;i<n;i++){
+      pos[i*3+0]=origin.x; pos[i*3+1]=origin.y; pos[i*3+2]=origin.z;
+
+      // bias outward from surface normal, so it "erupts" from surface
+      const u = Math.random()*2-1;
+      const a = Math.random()*Math.PI*2;
+      const r = Math.sqrt(1-u*u);
+      const rnd = new THREE.Vector3(r*Math.cos(a), u, r*Math.sin(a)).multiplyScalar(0.85);
+      const v = rnd.add(N.clone().multiplyScalar(1.15 + Math.random()*1.05)).normalize().multiplyScalar(1.4 + Math.random()*1.2);
+
+      vel[i*3+0]=v.x; vel[i*3+1]=v.y; vel[i*3+2]=v.z;
+    }
+
+    this.geo = new THREE.BufferGeometry();
+    this.geo.setAttribute("position", new THREE.BufferAttribute(pos,3));
+    this.vel = vel;
+
+    this.mat = new THREE.PointsMaterial({
+      size: 0.017,
+      map: TEX_FIRE,
+      transparent:true,
+      opacity:0.95,
+      depthWrite:false,
+      blending: THREE.AdditiveBlending
+    });
+    this.mat.color = new THREE.Color(0x9cffdf);
+    this.points = new THREE.Points(this.geo, this.mat);
+    fxGroup.add(this.points);
+  }
+  update(dt){
+    this.life += dt;
+    const p = this.geo.attributes.position.array;
+    const n = p.length/3;
+    const t = this.life;
+
+    for (let i=0;i<n;i++){
+      const ix=i*3;
+      p[ix+0] += this.vel[ix+0]*dt;
+      p[ix+1] += this.vel[ix+1]*dt;
+      p[ix+2] += this.vel[ix+2]*dt;
+
+      this.vel[ix+1] += -0.95*dt;
+      this.vel[ix+0] *= 0.988; this.vel[ix+1] *= 0.988; this.vel[ix+2] *= 0.988;
+    }
+    this.geo.attributes.position.needsUpdate = true;
+
+    const k = clamp(1 - t/this.max, 0, 1);
+    this.mat.opacity = 0.95*k;
+    this.mat.size = 0.016 + (1-k)*0.022;
+    return t < this.max;
+  }
+  dispose(){
+    fxGroup.remove(this.points);
+    this.geo.dispose(); this.mat.dispose();
+  }
+}
+
+class NukeFX{
+  constructor(origin, normal){
+    this.life = 0; this.max = 3.0;
+    this.origin = origin.clone();
+    this.normal = normal.clone().normalize();
+
+    const flashMat = new THREE.SpriteMaterial({
+      map: TEX_FLASH, transparent:true, opacity:1.0, depthWrite:false,
+      blending: THREE.AdditiveBlending
+    });
+    this.flash = new THREE.Sprite(flashMat);
+    this.flash.position.copy(this.origin);
+    this.flash.scale.setScalar(0.06);
+    fxGroup.add(this.flash);
+
+    // shockwave ring (tangent to surface)
+    const ringGeo = new THREE.RingGeometry(0.02, 0.025, 110);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0xffc7d6),
+      transparent:true,
+      opacity:0.9,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite:false
+    });
+    this.ring = new THREE.Mesh(ringGeo, ringMat);
+    this.ring.position.copy(this.origin);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), this.normal);
+    this.ring.quaternion.copy(q);
+    fxGroup.add(this.ring);
+
+    this.stem = this._makeCloudSystem(620, true);
+    this.cap  = this._makeCloudSystem(760, false);
+  }
+
+  _makeCloudSystem(n, isStem){
+    const pos = new Float32Array(n*3);
+    const vel = new Float32Array(n*3);
+
+    const up = this.normal.clone();
+    const a = new THREE.Vector3(0,1,0);
+    let right = new THREE.Vector3().crossVectors(up, a);
+    if (right.lengthSq() < 1e-6) right = new THREE.Vector3().crossVectors(up, new THREE.Vector3(1,0,0));
+    right.normalize();
+    const forward = new THREE.Vector3().crossVectors(right, up).normalize();
+
+    for (let i=0;i<n;i++){
+      const ix=i*3;
+      const spread = isStem ? 0.018 : 0.06;
+      const h = isStem ? (Math.random()*0.05) : (0.10 + Math.random()*0.06);
+      const ang = Math.random()*Math.PI*2;
+      const rr = Math.random()*spread;
+
+      const offset = right.clone().multiplyScalar(Math.cos(ang)*rr)
+        .add(forward.clone().multiplyScalar(Math.sin(ang)*rr))
+        .add(up.clone().multiplyScalar(h));
+
+      const p0 = this.origin.clone().add(offset);
+      pos[ix+0]=p0.x; pos[ix+1]=p0.y; pos[ix+2]=p0.z;
+
+      const vUp = isStem ? (0.55 + Math.random()*0.60) : (0.38 + Math.random()*0.45);
+      const vOut = isStem ? (0.10 + Math.random()*0.20) : (0.45 + Math.random()*0.85);
+
+      const outward = right.clone().multiplyScalar(Math.cos(ang))
+        .add(forward.clone().multiplyScalar(Math.sin(ang)))
+        .normalize();
+
+      const v = outward.multiplyScalar(vOut).add(up.clone().multiplyScalar(vUp));
+      vel[ix+0]=v.x; vel[ix+1]=v.y; vel[ix+2]=v.z;
+    }
+
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos,3));
+
+    const m = new THREE.PointsMaterial({
+      size: isStem ? 0.060 : 0.085,
+      map: TEX_SMOKE,
+      transparent:true,
+      opacity: 0.75,
+      depthWrite:false,
+      blending: THREE.NormalBlending
+    });
+    m.color = new THREE.Color(isStem ? 0xcfd4de : 0xdadce4);
+
+    const pts = new THREE.Points(g,m);
+    fxGroup.add(pts);
+    return { pts, g, m, vel, isStem };
+  }
+
+  update(dt){
+    this.life += dt;
+    const t = this.life;
+
+    if (this.flash){
+      const k = clamp(1 - t/0.22, 0, 1);
+      this.flash.material.opacity = 1.0*k;
+      this.flash.scale.setScalar(0.06 + (1-k)*0.58);
+      if (t>0.25){
+        fxGroup.remove(this.flash);
+        this.flash.material.dispose();
+        this.flash = null;
+      }
+    }
+
+    if (this.ring){
+      const k = clamp(1 - t/1.2, 0, 1);
+      const s = 1 + t*19.5;
+      this.ring.scale.setScalar(s);
+      this.ring.material.opacity = 0.9*k;
+      if (t>1.25){
+        fxGroup.remove(this.ring);
+        this.ring.geometry.dispose();
+        this.ring.material.dispose();
+        this.ring = null;
+      }
+    }
+
+    this._updateCloud(this.stem, dt, t);
+    this._updateCloud(this.cap, dt, t);
+
+    return t < this.max;
+  }
+
+  _updateCloud(sys, dt, t){
+    if (!sys) return;
+    const p = sys.g.attributes.position.array;
+    const n = p.length/3;
+
+    for (let i=0;i<n;i++){
+      const ix=i*3;
+      const buoy = sys.isStem ? 0.12 : 0.08;
+      const turb = sys.isStem ? 0.22 : 0.34;
+
+      sys.vel[ix+0] += (Math.random()-0.5)*turb*dt;
+      sys.vel[ix+2] += (Math.random()-0.5)*turb*dt;
+      sys.vel[ix+1] += buoy*dt;
+
+      p[ix+0] += sys.vel[ix+0]*dt;
+      p[ix+1] += sys.vel[ix+1]*dt;
+      p[ix+2] += sys.vel[ix+2]*dt;
+
+      sys.vel[ix+0] *= 0.985;
+      sys.vel[ix+1] *= 0.988;
+      sys.vel[ix+2] *= 0.985;
+    }
+    sys.g.attributes.position.needsUpdate = true;
+
+    const fadeStart = sys.isStem ? 0.65 : 0.90;
+    const fadeLen = 1.55;
+    const k = clamp(1 - Math.max(0, (t-fadeStart))/fadeLen, 0, 1);
+    sys.m.opacity = 0.75 * k;
+    sys.m.size = (sys.isStem ? 0.060 : 0.085) + (1-k)*(sys.isStem ? 0.11 : 0.18);
+
+    if (t > 2.35){
+      this._disposeCloud(sys);
+      if (sys===this.stem) this.stem=null;
+      if (sys===this.cap) this.cap=null;
+    }
+  }
+
+  _disposeCloud(sys){
+    if (!sys) return;
+    fxGroup.remove(sys.pts);
+    sys.g.dispose(); sys.m.dispose();
+  }
+
+  dispose(){
+    if (this.flash){
+      fxGroup.remove(this.flash);
+      this.flash.material.dispose();
+      this.flash=null;
+    }
+    if (this.ring){
+      fxGroup.remove(this.ring);
+      this.ring.geometry.dispose(); this.ring.material.dispose();
+      this.ring=null;
+    }
+    if (this.stem){ this._disposeCloud(this.stem); this.stem=null; }
+    if (this.cap){ this._disposeCloud(this.cap); this.cap=null; }
+  }
+}
+
+const effects = [];
+function spawnFireworks(surfacePoint){
+  const normal = surfacePoint.clone().normalize();
+  const origin = normal.clone().multiplyScalar(R+0.008); // on surface
+  effects.push(new Fireworks(origin, normal));
+}
+function spawnNuke(surfacePoint){
+  const normal = surfacePoint.clone().normalize();
+  const origin = normal.clone().multiplyScalar(R+0.006); // on surface
+  effects.push(new NukeFX(origin, normal));
+}
+
+// ---------- 3D-locked labels ----------
+const pinned = [];
+function pinCardToGlobe(text, surfacePoint){
+  const normal = surfacePoint.clone().normalize();
+  const point = normal.clone().multiplyScalar(R+0.07);
+
+  const wrap = document.createElement("div");
+  wrap.className = "pin";
+  wrap.innerHTML = `
+    <div class="pinCard">
+      <div class="k">已鎖定在地球上 ✅</div>
+      <div class="v">${text}</div>
+      <div class="pinDot"></div>
+    </div>
+  `;
+  const obj = new CSS2DObject(wrap);
+  obj.position.copy(point);
+  earthGroup.add(obj);
+  pinned.push(obj);
+}
+
+// ---------- Question bank (editable) ----------
+const BANK_KEY = "planetWindBankV3";
+function defaultBank(){
+  // Keep existing-style questions + add diagram-based belts/phenomena.
+  return {
+    cells: [
+      {id:uid(), label:"北半球 Hadley（0°–30°）", accept:["N_0_30"], enabled:true},
+      {id:uid(), label:"北半球 Ferrel（30°–60°）", accept:["N_30_60"], enabled:true},
+      {id:uid(), label:"北半球 Polar（60°–90°）", accept:["N_60_90"], enabled:true},
+      {id:uid(), label:"南半球 Hadley（0°–30°）", accept:["S_0_30"], enabled:true},
+      {id:uid(), label:"南半球 Ferrel（30°–60°）", accept:["S_30_60"], enabled:true},
+      {id:uid(), label:"南半球 Polar（60°–90°）", accept:["S_60_90"], enabled:true},
+
+      {id:uid(), label:"Hadley Cell（哈德里環流，0°–30°）", accept:["N_0_30","S_0_30"], enabled:true},
+      {id:uid(), label:"Ferrel Cell（費雷爾環流，30°–60°）", accept:["N_30_60","S_30_60"], enabled:true},
+      {id:uid(), label:"Polar Cell（極地環流，60°–90°）", accept:["N_60_90","S_60_90"], enabled:true},
+
+      {id:uid(), label:"副熱帶高氣壓帶（約 30°）", accept:["N_30_60","S_30_60"], enabled:true},
+      {id:uid(), label:"極圈氣旋帶 / 副極地低壓（約 60°）", accept:["N_60_90","S_60_90"], enabled:true},
+      {id:uid(), label:"極地高氣壓帶（約 90°）", accept:["N_60_90","S_60_90"], enabled:true},
+      {id:uid(), label:"赤道低壓帶（ITCZ，0°附近）", accept:["N_0_30","S_0_30"], enabled:true},
+      {id:uid(), label:"鋒面雨（多見於約 60°）", accept:["N_60_90","S_60_90"], enabled:true},
+      {id:uid(), label:"對流雷雨（赤道附近上升）", accept:["N_0_30","S_0_30"], enabled:true},
+    ],
+    winds: [
+      {id:uid(), label:"東北信風（北 0°–30°，NE→SW）", accept:["N_0_30"], enabled:true},
+      {id:uid(), label:"東南信風（南 0°–30°，SE→NW）", accept:["S_0_30"], enabled:true},
+      {id:uid(), label:"北半球西風帶（30°–60°，SW→NE）", accept:["N_30_60"], enabled:true},
+      {id:uid(), label:"南半球西風帶（30°–60°，NW→SE）", accept:["S_30_60"], enabled:true},
+      {id:uid(), label:"北半球極地東風（60°–90°）", accept:["N_60_90"], enabled:true},
+      {id:uid(), label:"南半球極地東風（60°–90°）", accept:["S_60_90"], enabled:true},
+
+      {id:uid(), label:"信風帶（Trade Winds，0°–30°）", accept:["N_0_30","S_0_30"], enabled:true},
+      {id:uid(), label:"西風帶（Westerlies，30°–60°）", accept:["N_30_60","S_30_60"], enabled:true},
+      {id:uid(), label:"極地東風帶（Polar Easterlies，60°–90°）", accept:["N_60_90","S_60_90"], enabled:true},
+
+      {id:uid(), label:"副熱帶高氣壓帶（約 30°，下沉）", accept:["N_30_60","S_30_60"], enabled:true},
+      {id:uid(), label:"對流雷雨（赤道附近）", accept:["N_0_30","S_0_30"], enabled:true},
+      {id:uid(), label:"鋒面雨（副極地低壓附近）", accept:["N_60_90","S_60_90"], enabled:true},
+    ],
+    belts: [
+      {id:uid(), label:"赤道無風帶（0°附近）", accept:["N_0_30","S_0_30"], enabled:true},
+      {id:uid(), label:"赤道低壓帶（上升，對流雷雨）", accept:["N_0_30","S_0_30"], enabled:true},
+      {id:uid(), label:"副熱帶高氣壓帶（下沉，約 30°）", accept:["N_30_60","S_30_60"], enabled:true},
+      {id:uid(), label:"西風帶（30°–60°）", accept:["N_30_60","S_30_60"], enabled:true},
+      {id:uid(), label:"極圈氣旋帶（鋒面雨，約 60°）", accept:["N_60_90","S_60_90"], enabled:true},
+      {id:uid(), label:"極地東風帶（60°–90°）", accept:["N_60_90","S_60_90"], enabled:true},
+      {id:uid(), label:"東北信風（北半球 0°–30°）", accept:["N_0_30"], enabled:true},
+      {id:uid(), label:"東南信風（南半球 0°–30°）", accept:["S_0_30"], enabled:true},
+      {id:uid(), label:"鋒面雨常出現在哪個緯度帶？", accept:["N_60_90","S_60_90"], enabled:true},
+      {id:uid(), label:"對流雷雨常出現在哪個緯度帶？", accept:["N_0_30","S_0_30"], enabled:true},
+    ]
+  };
+}
+
+function loadBank(){
+  try{
+    const s = localStorage.getItem(BANK_KEY);
+    if (!s) return defaultBank();
+    const obj = JSON.parse(s);
+    // minimal validation
+    if (!obj || typeof obj !== "object") return defaultBank();
+    for (const k of ["cells","winds","belts"]){
+      if (!Array.isArray(obj[k])) obj[k] = defaultBank()[k];
+      obj[k] = obj[k].map(q=>({
+        id: q.id || uid(),
+        label: String(q.label||""),
+        accept: Array.isArray(q.accept)? q.accept.filter(Boolean): [],
+        enabled: q.enabled !== false
+      })).filter(q=>q.label.trim().length>0 && q.accept.length>0);
+    }
+    return obj;
+  }catch(e){
+    return defaultBank();
+  }
+}
+
+function saveBank(){
+  localStorage.setItem(BANK_KEY, JSON.stringify(bank));
+}
+
+let bank = loadBank();
+
+// ---------- game logic ----------
+let tasks = [];
+let solved = 0;
+
+function shuffle(arr){
+  for (let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function buildTasks(){
+  const mode = $("mode").value;
+  const count = parseInt($("count").value, 10);
+
+  const poolAll = bank[mode] || [];
+  const pool = poolAll.filter(q=>q.enabled);
+
+  const pick = shuffle(pool.slice()).slice(0, clamp(count, 3, 14));
+  tasks = pick.map((q,idx)=>({ ...q, done:false, idx }));
+  solved = 0;
+
+  // clear pinned labels from previous run
+  for (const obj of pinned) earthGroup.remove(obj);
+  pinned.length = 0;
+
+  renderCards();
+  updateProgress();
+
+  // editor refresh numbers
+  refreshEditor();
+}
+
+function updateProgress(){
+  $("progress").textContent = `${solved}/${tasks.length}`;
+}
+
+function renderCards(){
+  const wrap = $("cards");
+  wrap.innerHTML = "";
+  for (const t of tasks){
+    const div = document.createElement("div");
+    div.className = "card" + (t.done ? " done" : "");
+    div.dataset.taskId = t.id;
+    div.innerHTML = `<div class="k">配對到正確緯度帶</div><div class="v">${t.label}</div>`;
+    wrap.appendChild(div);
+    attachDrag(div);
+  }
+}
+
+function markDone(taskId){
+  const t = tasks.find(x=>x.id===taskId);
+  if (!t || t.done) return;
+  t.done = true;
+  solved++;
+  renderCards();
+  updateProgress();
+  if (solved === tasks.length){
+    toast("🎉 全部答對！");
+  }
+}
+
+// ---------- drag & drop: ghost always visible ----------
+let drag = null;
+
+function attachDrag(el){
+  el.addEventListener("pointerdown", (e)=>{
+    const id = el.dataset.taskId;
+    const t = tasks.find(x=>x.id===id);
+    if (!t || t.done) return;
+
+    ensureAudio();
+    el.setPointerCapture(e.pointerId);
+
+    const ghost = el.cloneNode(true);
+    ghost.classList.add("ghost");
+    ghost.style.width = (el.getBoundingClientRect().width) + "px";
+    document.body.appendChild(ghost);
+
+    el.style.opacity = "0.35";
+    drag = { el, ghost, id, pointerId: e.pointerId };
+    moveGhost(e);
+  });
+
+  el.addEventListener("pointermove", (e)=>{
+    if (!drag || drag.el !== el) return;
+    moveGhost(e);
+
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -(((e.clientY - r.top) / r.height) * 2 - 1);
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects([...bandMeshes.values()], true);
+    setHoverBand(hits.length ? hits[0].object : null);
+  });
+
+  el.addEventListener("pointerup", (e)=>{
+    if (!drag || drag.el !== el) return;
+    el.releasePointerCapture(drag.pointerId);
+
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -(((e.clientY - r.top) / r.height) * 2 - 1);
+    raycaster.setFromCamera(mouse, camera);
+
+    const hits = raycaster.intersectObjects([...bandMeshes.values()], true);
+    const hit = hits.length ? hits[0] : null;
+
+    el.style.opacity = "";
+    if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    setHoverBand(null);
+
+    if (!hit){
+      toast("把卡片丟到地球發光緯度帶上～");
+      drag = null;
+      return;
+    }
+
+    const bandId = hit.object.userData.bandId || hit.object.parent?.userData?.bandId;
+    const task = tasks.find(x=>x.id===drag.id);
+    const ok = task && task.accept.includes(bandId);
+
+    // surface point (normalize) for FX + pin
+    const surfacePoint = hit.point.clone().normalize().multiplyScalar(R+0.01);
+
+    if (ok){
+      blip("ok");
+      toast("✅ 答對！");
+      spawnFireworks(surfacePoint);
+      pinCardToGlobe(task.label, surfacePoint);
+      markDone(task.id);
+    } else {
+      blip("bad");
+      toast("❌ 答錯！");
+      spawnNuke(surfacePoint);
+    }
+
+    drag = null;
+  });
+}
+
+function moveGhost(e){
+  if (!drag || !drag.ghost) return;
+  const w = drag.ghost.getBoundingClientRect().width;
+  drag.ghost.style.transform = `translate(${e.clientX - w/2}px, ${e.clientY - 30}px) scale(1.03)`;
+}
+
+// ---------- Editor ----------
+function modeLabel(m){
+  if (m==="cells") return "三圈環流";
+  if (m==="winds") return "地表盛行風";
+  if (m==="belts") return "氣壓帶/現象";
+  return m;
+}
+
+function refreshEditor(){
+  const mode = $("mode").value;
+  $("modeName").textContent = modeLabel(mode);
+  $("bankCount").textContent = String((bank[mode]||[]).length);
+
+  // build list
+  const list = $("bankList");
+  list.innerHTML = "";
+  const arr = bank[mode] || [];
+  for (const q of arr){
+    const div = document.createElement("div");
+    div.className = "qItem";
+    const on = q.enabled !== false;
+    div.innerHTML = `
+      <div class="qHead">
+        <div>
+          <div class="t">${escapeHtml(q.label)}</div>
+          <div class="meta">accept: ${q.accept.join(", ")}</div>
+        </div>
+        <div class="right">
+          <span class="tag ${on?"ok":"off"}">${on?"啟用":"停用"}</span>
+          <button class="miniBtn" data-act="toggle" data-id="${q.id}">${on?"停用":"啟用"}</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(div);
+  }
+
+  // attach actions
+  list.querySelectorAll("button[data-act='toggle']").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.dataset.id;
+      const q = (bank[mode]||[]).find(x=>x.id===id);
+      if (!q) return;
+      q.enabled = !q.enabled;
+      saveBank();
+      refreshEditor();
+      toast(q.enabled ? "已啟用題目" : "已停用題目");
+    });
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+}
+
+$("editorToggle").addEventListener("click", ()=>{
+  $("editor").classList.toggle("show");
+  refreshEditor();
+});
+
+$("closeEditor").addEventListener("click", ()=>{
+  $("editor").classList.remove("show");
+});
+
+$("clearAcc").addEventListener("click", ()=>{
+  document.querySelectorAll(".acc").forEach(x=>x.checked=false);
+});
+
+$("addQ").addEventListener("click", ()=>{
+  const mode = $("mode").value;
+  const label = $("newLabel").value.trim();
+  const accept = Array.from(document.querySelectorAll(".acc")).filter(x=>x.checked).map(x=>x.value);
+  if (!label || accept.length===0){
+    toast("請填題目文字＋至少勾一個可丟區域");
+    return;
+  }
+  bank[mode] = bank[mode] || [];
+  bank[mode].unshift({ id: uid(), label, accept, enabled:true });
+  saveBank();
+  $("newLabel").value = "";
+  document.querySelectorAll(".acc").forEach(x=>x.checked=false);
+  refreshEditor();
+  toast("已新增到題庫");
+});
+
+$("exportBank").addEventListener("click", ()=>{
+  $("bankJson").value = JSON.stringify(bank, null, 2);
+  toast("已匯出到文字框");
+});
+
+$("importBank").addEventListener("click", ()=>{
+  try{
+    const obj = JSON.parse($("bankJson").value);
+    if (!obj || typeof obj !== "object") throw new Error("bad");
+    // quick sanitize
+    for (const k of ["cells","winds","belts"]){
+      if (!Array.isArray(obj[k])) obj[k] = [];
+      obj[k] = obj[k].map(q=>({
+        id: q.id || uid(),
+        label: String(q.label||""),
+        accept: Array.isArray(q.accept)? q.accept.filter(Boolean): [],
+        enabled: q.enabled !== false
+      })).filter(q=>q.label.trim().length>0 && q.accept.length>0);
+    }
+    bank = obj;
+    saveBank();
+    refreshEditor();
+    toast("已匯入題庫");
+  }catch(e){
+    toast("JSON 格式不對，匯入失敗");
+  }
+});
+
+$("resetBank").addEventListener("click", ()=>{
+  bank = defaultBank();
+  saveBank();
+  refreshEditor();
+  toast("題庫已重置");
+});
+
+// ---------- UI events ----------
+$("count").addEventListener("input", ()=>{ $("countLabel").textContent = $("count").value; });
+$("mode").addEventListener("change", ()=>{ refreshEditor(); buildTasks(); });
+$("start").addEventListener("click", ()=>{ buildTasks(); toast("開始！"); });
+$("resetView").addEventListener("click", ()=>{
+  controls.reset();
+  camera.position.set(0,0,3.35);
+});
+
+// initial
+$("countLabel").textContent = $("count").value;
+buildTasks();
+refreshEditor();
+
+// ---------- render loop ----------
+let last = performance.now();
+function animate(now){
+  const dt = Math.min(0.033, (now-last)/1000);
+  last = now;
+
+  earth.rotation.y += dt * 0.11;
+  clouds.rotation.y += dt * 0.17;
+  atmo.rotation.y += dt * 0.11;
+  night.rotation.y += dt * 0.11;
+
+  // night visibility approx
+  const sunDir = new THREE.Vector3().copy(sun.position).normalize();
+  const camDir = new THREE.Vector3().copy(camera.position).normalize();
+  const k = clamp(1 - sunDir.dot(camDir), 0, 1);
+  night.material.opacity = 0.14 + 0.62*k;
+
+  // background drift
+  stars.rotation.y += dt*0.0018;
+  stars.rotation.x += dt*0.0006;
+  nebSphere.rotation.y -= dt*0.0007;
+
+  for (let i=effects.length-1;i>=0;i--){
+    const alive = effects[i].update(dt);
+    if (!alive){
+      effects[i].dispose?.();
+      effects.splice(i,1);
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+function onResize(){
+  renderer.setSize(stage.clientWidth, stage.clientHeight);
+  labelRenderer.setSize(stage.clientWidth, stage.clientHeight);
+  camera.aspect = stage.clientWidth/stage.clientHeight;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", onResize);
+renderer.domElement.addEventListener("pointerdown", ()=>{ ensureAudio(); }, { once:false });
+</script>
+</body>
+</html>
